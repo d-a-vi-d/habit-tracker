@@ -8,7 +8,7 @@ class SliderWidget extends StatelessWidget {
   final String label;
   final Function(double value) onChanged;
 
-  SliderWidget({
+  const SliderWidget({super.key, 
     required this.value,
     required this.min,
     required this.max,

@@ -1,34 +1,24 @@
 import 'package:flutter/material.dart';
 
-class CheckboxList extends StatefulWidget {
-  final List<Map<String, dynamic>> items; // Liste der Checkbox-Elemente
-  final Function(int index, bool value)? onChanged; // Callback-Funktion für Änderungen
+class CheckboxList extends StatelessWidget {
+  final List<Map<String, dynamic>> items;
+  final Function(int, bool) onChanged;
 
-  CheckboxList({required this.items, this.onChanged});
+  const CheckboxList({super.key, required this.items, required this.onChanged});
 
-  @override
-  _CheckboxListState createState() => _CheckboxListState();
-}
-
-class _CheckboxListState extends State<CheckboxList> {
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: widget.items.length,
-      itemBuilder: (context, index) {
+    return Column(
+      children: items.map((item) {
+        int index = items.indexOf(item);
         return CheckboxListTile(
-          title: Text(widget.items[index]['name']),
-          value: widget.items[index]['isChecked'],
+          title: Text(item['name'] ?? item['title'] ?? 'Unknown'),
+          value: item['value'],
           onChanged: (bool? value) {
-            setState(() {
-              widget.items[index]['isChecked'] = value ?? false;
-            });
-            if (widget.onChanged != null) {
-              widget.onChanged!(index, value ?? false);
-            }
+            onChanged(index, value ?? false);
           },
         );
-      },
+      }).toList(),
     );
   }
 }
