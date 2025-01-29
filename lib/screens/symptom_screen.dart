@@ -17,10 +17,16 @@ class SymptomScreen extends StatefulWidget {
 
 class _SymptomScreenState extends State<SymptomScreen> {
   final List<Map<String, dynamic>> symptoms = [
-    {'name': 'Müdigkeit', 'value': false},
-    {'name': 'Trockene Haut', 'value': false},
-    {'name': 'Verdauungsprobleme', 'value': false},
+    {'name': 'Müdigkeit', 'value': null},
+    {'name': 'Trockene Haut', 'value': null},
+    {'name': 'Verdauungsprobleme', 'value': null},
   ];
+
+  DateTime? selectedDateTime = DateTime.now();
+  String _getWeekday(DateTime date) {
+    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+    return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
+  }
 
   void saveEntry() async {
     final entry = Entry(
@@ -42,11 +48,70 @@ class _SymptomScreenState extends State<SymptomScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Symptome'),
+        title: Text("Trigger"),
         actions: [
-          IconButton(
-            icon: Icon(Icons.brightness_6),
-            onPressed: widget.toggleThemeMode,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () async {
+                  // Datum auswählen
+                  final DateTime? selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDateTime ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+
+                  if (selectedDate != null) {
+                    setState(() {
+                      selectedDateTime = DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        selectedDateTime?.hour ?? 0,
+                        selectedDateTime?.minute ?? 0,
+                      );
+                    });
+                  }
+                },
+                child: Text(
+                  "${selectedDateTime != null ? "${_getWeekday(selectedDateTime!)} " : ''}"
+                      "${selectedDateTime?.day ?? DateTime.now().day}.${selectedDateTime?.month ?? DateTime.now().month}.${selectedDateTime?.year ?? DateTime.now().year}",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+
+              TextButton(
+                onPressed: () async {
+                  // Uhrzeit auswählen
+                  final TimeOfDay? pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
+                  );
+
+                  if (pickedTime != null) {
+                    setState(() {
+                      selectedDateTime = DateTime(
+                        selectedDateTime?.year ?? DateTime.now().year,
+                        selectedDateTime?.month ?? DateTime.now().month,
+                        selectedDateTime?.day ?? DateTime.now().day,
+                        pickedTime.hour,
+                        pickedTime.minute,
+                      );
+                    });
+                  }
+                },
+                child: Text(
+                  "${selectedDateTime?.hour ?? DateTime.now().hour}:${selectedDateTime?.minute ?? DateTime.now().minute}",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.brightness_6),
+                onPressed: widget.toggleThemeMode,
+              ),
+            ],
           ),
         ],
       ),

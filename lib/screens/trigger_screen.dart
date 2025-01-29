@@ -16,9 +16,9 @@ class TriggerScreen extends StatefulWidget {
 
 class _TriggerScreenState extends State<TriggerScreen> {
   final List<Map<String, dynamic>> triggers = [
-    {"title": "Weizen", "value": false},
-    {"title": "Kohlenhydrate", "value": false},
-    {"title": "Zucker", "value": false},
+    {"title": "Weizen", "value": null},
+    {"title": "Kohlenhydrate", "value": null},
+    {"title": "Zucker", "value": null},
   ];
 
   double drinking = 500;
@@ -31,6 +31,10 @@ class _TriggerScreenState extends State<TriggerScreen> {
     return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
   }
 
+
+
+
+
   void saveEntry() async {
     final entry = Entry(
       date: selectedDateTime ?? DateTime.now(),
@@ -42,7 +46,7 @@ class _TriggerScreenState extends State<TriggerScreen> {
         "Draussen": outdoors,
         "Schlafen": sleeping,
       },
-      symptoms: {}, // Symptome später hinzufügen
+      symptoms: {},
     );
     await StorageService().saveEntry(entry);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -56,145 +60,141 @@ class _TriggerScreenState extends State<TriggerScreen> {
       appBar: AppBar(
         title: Text("Trigger"),
         actions: [
-          IconButton(
-            icon: Icon(Icons.brightness_6),
-            onPressed: widget.toggleThemeMode,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () async {
+                  // Datum auswählen
+                  final DateTime? selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDateTime ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+
+                  if (selectedDate != null) {
+                    setState(() {
+                      selectedDateTime = DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        selectedDateTime?.hour ?? 0,
+                        selectedDateTime?.minute ?? 0,
+                      );
+                    });
+                  }
+                },
+                child: Text(
+                  "${selectedDateTime != null ? "${_getWeekday(selectedDateTime!)} " : ''}"
+                      "${selectedDateTime?.day ?? DateTime.now().day}.${selectedDateTime?.month ?? DateTime.now().month}.${selectedDateTime?.year ?? DateTime.now().year}",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+
+              TextButton(
+                onPressed: () async {
+                  // Uhrzeit auswählen
+                  final TimeOfDay? pickedTime = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
+                  );
+
+                  if (pickedTime != null) {
+                    setState(() {
+                      selectedDateTime = DateTime(
+                        selectedDateTime?.year ?? DateTime.now().year,
+                        selectedDateTime?.month ?? DateTime.now().month,
+                        selectedDateTime?.day ?? DateTime.now().day,
+                        pickedTime.hour,
+                        pickedTime.minute,
+                      );
+                    });
+                  }
+                },
+                child: Text(
+                  "${selectedDateTime?.hour ?? DateTime.now().hour}:${selectedDateTime?.minute ?? DateTime.now().minute}",
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.brightness_6),
+                onPressed: widget.toggleThemeMode,
+              ),
+            ],
           ),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () async {
-                    // Datum auswählen
-                    final DateTime? selectedDate = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDateTime ?? DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-
-                    if (selectedDate != null) {
-                      setState(() {
-                        selectedDateTime = DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          selectedDateTime?.hour ?? 0,
-                          selectedDateTime?.minute ?? 0,
-                        );
-                      });
-                    }
-                  },
-                  child: Text(
-                    "${selectedDateTime != null ? "${_getWeekday(selectedDateTime!)} " : ''}"
-                        "${selectedDateTime?.day ?? DateTime.now().day}.${selectedDateTime?.month ?? DateTime.now().month}.${selectedDateTime?.year ?? DateTime.now().year}",
-                    style: TextStyle(fontSize: 18),
+        child:
+          Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: CheckboxList(
+                      items: triggers.map((item) {
+                        return {
+                          "title": item["title"] ?? "Unknown", // Provide a default value if title is null
+                          "value": item["value"] // Ensure value can be null
+                        };
+                      }).toList(),
+                      onChanged: (index, value) {
+                        setState(() {
+                          triggers[index]["value"] = value;
+                        });
+                      },
+                    ),
                   ),
-                ),
-
-                TextButton(
-                  onPressed: () async {
-                    // Uhrzeit auswählen
-                    final TimeOfDay? pickedTime = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
-                    );
-
-                    if (pickedTime != null) {
-                      setState(() {
-                        selectedDateTime = DateTime(
-                          selectedDateTime?.year ?? DateTime.now().year,
-                          selectedDateTime?.month ?? DateTime.now().month,
-                          selectedDateTime?.day ?? DateTime.now().day,
-                          pickedTime.hour,
-                          pickedTime.minute,
-                        );
-                      });
-                    }
-                  },
-                  child: Text(
-                    "${selectedDateTime?.hour ?? DateTime.now().hour}:${selectedDateTime?.minute ?? DateTime.now().minute}",
-                    style: TextStyle(fontSize: 18),
+                  ElevatedButton(
+                    onPressed: saveEntry,
+                    child: Text("Speichern"),
                   ),
-                ),
-
-              ],
-            ),
-            Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: CheckboxList(
-                        items: triggers.map((item) {
-                          return {
-                            "title": item["title"] ?? "Unknown", // Provide a default value if title is null
-                            "value": item["value"] ?? false // Ensure value is not null
-                          };
-                        }).toList(),
-                        onChanged: (index, value) {
-                          setState(() {
-                            triggers[index]["value"] = value;
-                          });
-                        },
-                      ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        SliderWidget(
+                          value: drinking,
+                          min: 0,
+                          max: 4000,
+                          divisions: 40,
+                          label: "Trinken: ${drinking.toInt()} ml",
+                          onChanged: (value) => setState(() => drinking = value),
+                        ),
+                        SliderWidget(
+                          value: outdoors,
+                          min: 0,
+                          max: 120,
+                          divisions: 12,
+                          label: "Draußen: ${outdoors.toInt()} Minuten",
+                          onChanged: (value) => setState(() => outdoors = value),
+                        ),
+                        SliderWidget(
+                          value: sleeping,
+                          min: 3,
+                          max: 11,
+                          divisions: 32,
+                          label: "Schlafen: ${sleeping.toStringAsFixed(1)} Stunden",
+                          onChanged: (value) => setState(() => sleeping = value),
+                        ),
+                      ],
                     ),
-                    ElevatedButton(
-                      onPressed: saveEntry,
-                      child: Text("Speichern"),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          SliderWidget(
-                            value: drinking,
-                            min: 0,
-                            max: 4000,
-                            divisions: 40,
-                            label: "Trinken: ${drinking.toInt()} ml",
-                            onChanged: (value) => setState(() => drinking = value),
-                          ),
-                          SliderWidget(
-                            value: outdoors,
-                            min: 0,
-                            max: 120,
-                            divisions: 12,
-                            label: "Draußen: ${outdoors.toInt()} Minuten",
-                            onChanged: (value) => setState(() => outdoors = value),
-                          ),
-                          SliderWidget(
-                            value: sleeping,
-                            min: 3,
-                            max: 11,
-                            divisions: 32,
-                            label: "Schlafen: ${sleeping.toStringAsFixed(1)} Stunden",
-                            onChanged: (value) => setState(() => sleeping = value),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: saveEntry,
-                      child: Text("Speichern"),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          ],
-        ),
+                  ),
+                  ElevatedButton(
+                    onPressed: saveEntry,
+                    child: Text("Speichern"),
+                  ),
+                ],
+              ),
+            ],
+          ),
       ),
     );
   }
