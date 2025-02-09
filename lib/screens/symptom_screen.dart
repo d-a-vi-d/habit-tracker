@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/checkbox_list.dart';
-import '../widgets/slider_widget.dart';
 import '../models/entry_model.dart';
 import '../services/storage_service.dart';
 
@@ -10,21 +9,20 @@ class SymptomScreen extends StatefulWidget {
 
   const SymptomScreen({super.key, required this.pageController, required this.toggleThemeMode});
 
-
   @override
   _SymptomScreenState createState() => _SymptomScreenState();
 }
 
 class _SymptomScreenState extends State<SymptomScreen> {
   final List<Map<String, dynamic>> symptoms = [
-    {'name': 'Müdigkeit', 'value': null},
-    {'name': 'Trockene Haut', 'value': null},
-    {'name': 'Verdauungsprobleme', 'value': null},
+    {"title": "Müdigkeit", "value": null},
+    {"title": "Trockene Haut", "value": null},
+    {"title": "Verdauungsprobleme", "value": null},
   ];
 
   DateTime? selectedDateTime = DateTime.now();
   String _getWeekday(DateTime date) {
-    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+    const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
   }
 
@@ -33,9 +31,9 @@ class _SymptomScreenState extends State<SymptomScreen> {
       date: DateTime.now(),
       triggers: {},
       symptoms: {
-        "Müdigkeit": symptoms[0]["value"],
-        "Trockene Haut": symptoms[1]["value"],
-        "Verdauungsprobleme": symptoms[2]["value"],
+        "Müdigkeit": symptoms[0]["value"]?.toString() ?? '',
+        "Trockene Haut": symptoms[1]["value"]?.toString() ?? '',
+        "Verdauungsprobleme": symptoms[2]["value"]?.toString() ?? '',
       },
     );
     await StorageService().saveEntry(entry);
@@ -44,11 +42,51 @@ class _SymptomScreenState extends State<SymptomScreen> {
     );
   }
 
+  void _addSymptom() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String newSymptomName = '';
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Add Symptom'),
+              content: TextField(
+                onChanged: (value) {
+                  newSymptomName = value;
+                },
+                decoration: InputDecoration(hintText: "Enter symptom name"),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      symptoms.add({'name': newSymptomName, 'value': null});
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Trigger"),
+        title: Text("Symptome"),
         actions: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -118,23 +156,32 @@ class _SymptomScreenState extends State<SymptomScreen> {
 
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              CheckboxList(
-                items: symptoms,
-                onChanged: (index, value) {
-                  setState(() {
-                    symptoms[index]['value'] = value;
-                  });
-                },
-              ),
-              ElevatedButton(
-                onPressed: saveEntry,
-                child: Text("Speichern"),
-              ),
-            ],
-          ),
+        child: Column(
+          children: [
+            CheckboxList(
+              items: symptoms,
+              onChanged: (index, value) {
+                setState(() {
+                  symptoms[index]['value'] = value;
+                });
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: _addSymptom,
+                  child: Text("Add Symptom"),
+                ),
+                ElevatedButton(
+                  onPressed: saveEntry,
+                  child: Text("Speichern"),
+                ),
+              ],
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
+}

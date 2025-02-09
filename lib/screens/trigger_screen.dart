@@ -15,36 +15,37 @@ class TriggerScreen extends StatefulWidget {
 }
 
 class _TriggerScreenState extends State<TriggerScreen> {
-  final List<Map<String, dynamic>> triggers = [
+  final List<Map<String, dynamic>> triggers_short = [
     {"title": "Weizen", "value": null},
     {"title": "Kohlenhydrate", "value": null},
     {"title": "Zucker", "value": null},
   ];
 
-  double drinking = 500;
-  double outdoors = 30;
-  double sleeping = 8;
+  final List<Map<String, dynamic>> triggers_long = [
+    {"title": "Trinken", "value": 500.0, "start": 0.0, "end": 1000.0, "step": 50.0},
+    {"title": "Draussen", "value": 30.0, "start": 0.0, "end": 120.0, "step": 10.0},
+    {"title": "Schlafen", "value": 8.0, "start": 0.0, "end": 24.0, "step": 1.0},
+  ];
 
   DateTime? selectedDateTime = DateTime.now();
   String _getWeekday(DateTime date) {
-    const weekdays = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+    const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
   }
 
-
-
-
-
-  void saveEntry() async {
+  void saveShortTriggers() async {
     final entry = Entry(
-      date: selectedDateTime ?? DateTime.now(),
+      date: DateTime(
+        selectedDateTime?.year ?? DateTime.now().year,
+        selectedDateTime?.month ?? DateTime.now().month,
+        selectedDateTime?.day ?? DateTime.now().day,
+        selectedDateTime?.hour ?? 0,
+        selectedDateTime?.minute ?? 0,
+      ),
       triggers: {
-        "Weizen": triggers[0]["value"],
-        "Kohlenhydrate": triggers[1]["value"],
-        "Zucker": triggers[2]["value"],
-        "Trinken": drinking,
-        "Draussen": outdoors,
-        "Schlafen": sleeping,
+        "Weizen": triggers_short[0]["value"],
+        "Kohlenhydrate": triggers_short[1]["value"],
+        "Zucker": triggers_short[2]["value"],
       },
       symptoms: {},
     );
@@ -54,147 +55,193 @@ class _TriggerScreenState extends State<TriggerScreen> {
     );
   }
 
+  void saveLongTriggers() async {
+    final entry = Entry(
+      date: DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      ),
+      triggers: {
+        "Trinken": triggers_long[0]["value"],
+        "Draussen": triggers_long[1]["value"],
+        "Schlafen": triggers_long[2]["value"],
+      },
+      symptoms: {},
+    );
+    await StorageService().saveEntry(entry);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Eintrag gespeichert!")),
+    );
+  }
+
+  void _addTrigger() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String newTriggerName = '';
+        String triggerType = 'short';
+        double startValue = 0.0;
+        double endValue = 100.0;
+        double stepValue = 1.0;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Add Trigger'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButton<String>(
+                    value: triggerType,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        triggerType = newValue!;
+                      });
+                    },
+                    items: <String>['short', 'long']
+                        .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                  TextField(
+                    onChanged: (value) {
+                      newTriggerName = value;
+                    },
+                    decoration: InputDecoration(hintText: "Enter trigger name"),
+                  ),
+                  if (triggerType == 'long') ...[
+                    TextField(
+                      onChanged: (value) {
+                        startValue = double.tryParse(value) ?? 0.0;
+                      },
+                      decoration: InputDecoration(hintText: "Enter start value"),
+                      keyboardType: TextInputType.number,
+                    ),
+                    TextField(
+                      onChanged: (value) {
+                        endValue = double.tryParse(value) ?? 100.0;
+                      },
+                      decoration: InputDecoration(hintText: "Enter end value"),
+                      keyboardType: TextInputType.number,
+                    ),
+                    TextField(
+                      onChanged: (value) {
+                        stepValue = double.tryParse(value) ?? 1.0;
+                      },
+                      decoration: InputDecoration(hintText: "Enter step value"),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      if (triggerType == 'short') {
+                        triggers_short.add({'title': newTriggerName, 'value': null});
+                      } else {
+                        triggers_long.add({
+                          'title': newTriggerName,
+                          'value': startValue,
+                          'start': startValue,
+                          'end': endValue,
+                          'step': stepValue,
+                        });
+                      }
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("Trigger"),
         actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () async {
-                  // Datum auswählen
-                  final DateTime? selectedDate = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDateTime ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-
-                  if (selectedDate != null) {
-                    setState(() {
-                      selectedDateTime = DateTime(
-                        selectedDate.year,
-                        selectedDate.month,
-                        selectedDate.day,
-                        selectedDateTime?.hour ?? 0,
-                        selectedDateTime?.minute ?? 0,
-                      );
-                    });
-                  }
-                },
-                child: Text(
-                  "${selectedDateTime != null ? "${_getWeekday(selectedDateTime!)} " : ''}"
-                      "${selectedDateTime?.day ?? DateTime.now().day}.${selectedDateTime?.month ?? DateTime.now().month}.${selectedDateTime?.year ?? DateTime.now().year}",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-
-              TextButton(
-                onPressed: () async {
-                  // Uhrzeit auswählen
-                  final TimeOfDay? pickedTime = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
-                  );
-
-                  if (pickedTime != null) {
-                    setState(() {
-                      selectedDateTime = DateTime(
-                        selectedDateTime?.year ?? DateTime.now().year,
-                        selectedDateTime?.month ?? DateTime.now().month,
-                        selectedDateTime?.day ?? DateTime.now().day,
-                        pickedTime.hour,
-                        pickedTime.minute,
-                      );
-                    });
-                  }
-                },
-                child: Text(
-                  "${selectedDateTime?.hour ?? DateTime.now().hour}:${selectedDateTime?.minute ?? DateTime.now().minute}",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.brightness_6),
-                onPressed: widget.toggleThemeMode,
-              ),
-            ],
-          ),
+          // Date and time pickers
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child:
-          Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: CheckboxList(
-                      items: triggers.map((item) {
-                        return {
-                          "title": item["title"] ?? "Unknown", // Provide a default value if title is null
-                          "value": item["value"] // Ensure value can be null
-                        };
+        child: Column(
+          children: [
+            // Short triggers
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: CheckboxList(
+                    items: triggers_short.map((item) {
+                      return {
+                        "title": item["title"] ?? "Unknown",
+                        "value": item["value"]
+                      };
+                    }).toList(),
+                    onChanged: (index, value) {
+                      setState(() {
+                        triggers_short[index]["value"] = value;
+                      });
+                    },
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: saveShortTriggers,
+                  child: Text("Speichern"),
+                ),
+              ],
+            ),
+            // Long triggers
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      ...triggers_long.map((item) {
+                        return SliderWidget(
+                          value: item['value'] ?? item['start'],
+                          min: item['start'],
+                          max: item['end'],
+                          divisions: ((item['end'] - item['start']) / item['step']).round(),
+                          label: "${item['title']}: ${item['value']?.toStringAsFixed(1) ?? item['start'].toStringAsFixed(1)}",
+                          onChanged: (value) => setState(() => item['value'] = value),
+                        );
                       }).toList(),
-                      onChanged: (index, value) {
-                        setState(() {
-                          triggers[index]["value"] = value;
-                        });
-                      },
-                    ),
+                    ],
                   ),
-                  ElevatedButton(
-                    onPressed: saveEntry,
-                    child: Text("Speichern"),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        SliderWidget(
-                          value: drinking,
-                          min: 0,
-                          max: 4000,
-                          divisions: 40,
-                          label: "Trinken: ${drinking.toInt()} ml",
-                          onChanged: (value) => setState(() => drinking = value),
-                        ),
-                        SliderWidget(
-                          value: outdoors,
-                          min: 0,
-                          max: 120,
-                          divisions: 12,
-                          label: "Draußen: ${outdoors.toInt()} Minuten",
-                          onChanged: (value) => setState(() => outdoors = value),
-                        ),
-                        SliderWidget(
-                          value: sleeping,
-                          min: 3,
-                          max: 11,
-                          divisions: 32,
-                          label: "Schlafen: ${sleeping.toStringAsFixed(1)} Stunden",
-                          onChanged: (value) => setState(() => sleeping = value),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: saveEntry,
-                    child: Text("Speichern"),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                ElevatedButton(
+                  onPressed: saveLongTriggers,
+                  child: Text("Speichern"),
+                ),
+              ],
+            ),
+            ElevatedButton(
+              onPressed: _addTrigger,
+              child: Text("Add Trigger"),
+            ),
+          ],
+        ),
       ),
     );
   }

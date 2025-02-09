@@ -6,21 +6,21 @@ class SliderWidget extends StatelessWidget {
   final double max;
   final int divisions;
   final String label;
-  final Function(double value) onChanged;
+  final ValueChanged<double> onChanged;
 
-  const SliderWidget({super.key, 
+  const SliderWidget({
+    Key? key,
     required this.value,
     required this.min,
     required this.max,
     required this.divisions,
     required this.label,
     required this.onChanged,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label),
         Slider(
