@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/checkbox_list.dart';
-import '../widgets/slider_widget.dart';
+import '../widgets/custom_app_bar.dart';
 import '../models/entry_model.dart';
 import '../services/storage_service.dart';
+import '../widgets/slider_widget.dart';
 
 class TriggerScreen extends StatefulWidget {
   final PageController pageController;
@@ -22,15 +23,17 @@ class _TriggerScreenState extends State<TriggerScreen> {
   ];
 
   final List<Map<String, dynamic>> triggers_long = [
-    {"title": "Trinken", "value": 500.0, "start": 0.0, "end": 1000.0, "step": 50.0},
-    {"title": "Draussen", "value": 30.0, "start": 0.0, "end": 120.0, "step": 10.0},
-    {"title": "Schlafen", "value": 8.0, "start": 0.0, "end": 24.0, "step": 1.0},
+    {"title": "Trinken", "value": 0.0, "start": 0.0, "end": 3000.0, "step": 250.0},
+    {"title": "Draussen", "value": 0.0, "start": 0.0, "end": 3.0, "step": 0.2},
+    {"title": "Schlafen", "value": 0.0, "start": 0.0, "end": 12.0, "step": 0.25},
   ];
 
-  DateTime? selectedDateTime = DateTime.now();
+  DateTime selectedDateTime = DateTime.now();
+  bool isEditMode = false;
+
   String _getWeekday(DateTime date) {
     const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
+    return weekdays[date.weekday % 7];
   }
 
   void saveShortTriggers() async {
@@ -88,7 +91,7 @@ class _TriggerScreenState extends State<TriggerScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text('Add Trigger'),
+              title: Text(isEditMode ? 'Edit Trigger' : 'Add Trigger'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -172,73 +175,139 @@ class _TriggerScreenState extends State<TriggerScreen> {
     );
   }
 
+  void _editLongTrigger(int index) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        String editedTriggerName = triggers_long[index]['title'];
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Edit Trigger'),
+              content: TextField(
+                onChanged: (value) {
+                  editedTriggerName = value;
+                },
+                decoration: InputDecoration(hintText: "Enter trigger name"),
+                controller: TextEditingController(text: triggers_long[index]['title']),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      triggers_long[index]['title'] = editedTriggerName;
+                    });
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Trigger"),
-        actions: [
-          // Date and time pickers
-        ],
+      appBar: CustomAppBar(
+        title: 'Trigger',
+        selectedDateTime: selectedDateTime,
+        onDateTimeChanged: (newDateTime) {
+          setState(() {
+            selectedDateTime = newDateTime;
+          });
+        },
+        toggleThemeMode: widget.toggleThemeMode,
+        isEditMode: isEditMode,
+        onToggleEditMode: () {
+          setState(() {
+            isEditMode = !isEditMode;
+          });
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Short triggers
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: CheckboxList(
-                    items: triggers_short.map((item) {
-                      return {
-                        "title": item["title"] ?? "Unknown",
-                        "value": item["value"]
-                      };
-                    }).toList(),
+                    items: triggers_short,
                     onChanged: (index, value) {
                       setState(() {
                         triggers_short[index]["value"] = value;
                       });
                     },
+                    onEdit: (index) {
+                      // Edit Funktion für kurze Trigger (kann ergänzt werden)
+                    },
+                    onDelete: (index) {
+                      setState(() {
+                        triggers_short.removeAt(index);
+                      });
+                    },
+                    isEditMode: isEditMode,
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: saveShortTriggers,
-                  child: Text("Speichern"),
-                ),
+                if (!isEditMode)
+                  ElevatedButton(
+                    onPressed: saveShortTriggers,
+                    child: Text("Speichern"),
+                  ),
               ],
             ),
-            // Long triggers
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
               children: [
-                Expanded(
-                  child: Column(
+                ...triggers_long.map((item) {
+                  int index = triggers_long.indexOf(item);
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ...triggers_long.map((item) {
-                        return SliderWidget(
+                      Expanded(
+                        child: SliderWidget(
                           value: item['value'] ?? item['start'],
                           min: item['start'],
                           max: item['end'],
                           divisions: ((item['end'] - item['start']) / item['step']).round(),
                           label: "${item['title']}: ${item['value']?.toStringAsFixed(1) ?? item['start'].toStringAsFixed(1)}",
                           onChanged: (value) => setState(() => item['value'] = value),
-                        );
-                      }).toList(),
+                        ),
+                      ),
+                      if (isEditMode)
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () => _editLongTrigger(index),
+                        ),
                     ],
+                  );
+                }).toList(),
+                if (!isEditMode)
+                  ElevatedButton(
+                    onPressed: saveLongTriggers,
+                    child: Text("Speichern"),
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: saveLongTriggers,
-                  child: Text("Speichern"),
-                ),
               ],
             ),
-            ElevatedButton(
-              onPressed: _addTrigger,
-              child: Text("Add Trigger"),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: _addTrigger,
+                  child: Text("Add Trigger"),
+                ),
+              ],
             ),
           ],
         ),

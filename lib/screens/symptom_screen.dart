@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/checkbox_list.dart';
+import '../widgets/custom_app_bar.dart';
 import '../models/entry_model.dart';
 import '../services/storage_service.dart';
 
@@ -7,7 +8,11 @@ class SymptomScreen extends StatefulWidget {
   final PageController pageController;
   final VoidCallback toggleThemeMode;
 
-  const SymptomScreen({super.key, required this.pageController, required this.toggleThemeMode});
+  const SymptomScreen({
+    super.key,
+    required this.pageController,
+    required this.toggleThemeMode,
+  });
 
   @override
   _SymptomScreenState createState() => _SymptomScreenState();
@@ -20,15 +25,12 @@ class _SymptomScreenState extends State<SymptomScreen> {
     {"title": "Verdauungsprobleme", "value": null},
   ];
 
-  DateTime? selectedDateTime = DateTime.now();
-  String _getWeekday(DateTime date) {
-    const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    return weekdays[date.weekday % 7]; // % 7 ensures that the index is within the range of the weekdays array
-  }
+  DateTime selectedDateTime = DateTime.now();
+  bool isEditMode = false;
 
   void saveEntry() async {
     final entry = Entry(
-      date: DateTime.now(),
+      date: selectedDateTime,
       triggers: {},
       symptoms: {
         "Müdigkeit": symptoms[0]["value"]?.toString() ?? '',
@@ -38,124 +40,110 @@ class _SymptomScreenState extends State<SymptomScreen> {
     );
     await StorageService().saveEntry(entry);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Eintrag gespeichert!")),
+      const SnackBar(content: Text("Eintrag gespeichert!")),
     );
   }
 
   void _addSymptom() {
+    String newSymptomName = '';
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        String newSymptomName = '';
-
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Add Symptom'),
-              content: TextField(
-                onChanged: (value) {
-                  newSymptomName = value;
-                },
-                decoration: InputDecoration(hintText: "Enter symptom name"),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      symptoms.add({'name': newSymptomName, 'value': null});
-                    });
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('OK'),
-                ),
-              ],
-            );
-          },
+        return AlertDialog(
+          title: Text(isEditMode ? 'Edit Symptom' : 'Add Symptom'),
+          content: TextField(
+            onChanged: (value) {
+              newSymptomName = value;
+            },
+            decoration: const InputDecoration(hintText: "Enter symptom name"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (newSymptomName.trim().isNotEmpty) {
+                  setState(() {
+                    symptoms.add({'title': newSymptomName, 'value': null});
+                  });
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
         );
       },
     );
   }
 
+  void _editSymptom(int index) {
+    String editedSymptomName = symptoms[index]['title'];
+    final controller = TextEditingController(text: editedSymptomName);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Symptom'),
+          content: TextField(
+            controller: controller,
+            onChanged: (value) {
+              editedSymptomName = value;
+            },
+            decoration: const InputDecoration(hintText: "Enter symptom name"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (editedSymptomName.trim().isNotEmpty) {
+                  setState(() {
+                    symptoms[index]['title'] = editedSymptomName;
+                  });
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteSymptom(int index) {
+    setState(() {
+      symptoms.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Symptome"),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () async {
-                  // Datum auswählen
-                  final DateTime? selectedDate = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDateTime ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-
-                  if (selectedDate != null) {
-                    setState(() {
-                      selectedDateTime = DateTime(
-                        selectedDate.year,
-                        selectedDate.month,
-                        selectedDate.day,
-                        selectedDateTime?.hour ?? 0,
-                        selectedDateTime?.minute ?? 0,
-                      );
-                    });
-                  }
-                },
-                child: Text(
-                  "${selectedDateTime != null ? "${_getWeekday(selectedDateTime!)} " : ''}"
-                      "${selectedDateTime?.day ?? DateTime.now().day}.${selectedDateTime?.month ?? DateTime.now().month}.${selectedDateTime?.year ?? DateTime.now().year}",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-
-              TextButton(
-                onPressed: () async {
-                  // Uhrzeit auswählen
-                  final TimeOfDay? pickedTime = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
-                  );
-
-                  if (pickedTime != null) {
-                    setState(() {
-                      selectedDateTime = DateTime(
-                        selectedDateTime?.year ?? DateTime.now().year,
-                        selectedDateTime?.month ?? DateTime.now().month,
-                        selectedDateTime?.day ?? DateTime.now().day,
-                        pickedTime.hour,
-                        pickedTime.minute,
-                      );
-                    });
-                  }
-                },
-                child: Text(
-                  "${selectedDateTime?.hour ?? DateTime.now().hour}:${selectedDateTime?.minute ?? DateTime.now().minute}",
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.brightness_6),
-                onPressed: widget.toggleThemeMode,
-              ),
-            ],
-          ),
-        ],
+      appBar: CustomAppBar(
+        title: 'Symptome',
+        selectedDateTime: selectedDateTime,
+        onDateTimeChanged: (newDateTime) {
+          setState(() {
+            selectedDateTime = newDateTime;
+          });
+        },
+        toggleThemeMode: widget.toggleThemeMode,
+        isEditMode: isEditMode,
+        onToggleEditMode: () {
+          setState(() {
+            isEditMode = !isEditMode;
+          });
+        },
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             CheckboxList(
@@ -165,17 +153,21 @@ class _SymptomScreenState extends State<SymptomScreen> {
                   symptoms[index]['value'] = value;
                 });
               },
+              onEdit: _editSymptom,
+              onDelete: _deleteSymptom,
+              isEditMode: isEditMode,
             ),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton(
                   onPressed: _addSymptom,
-                  child: Text("Add Symptom"),
+                  child: Text(isEditMode ? "Edit Symptom" : "Add Symptom"),
                 ),
                 ElevatedButton(
                   onPressed: saveEntry,
-                  child: Text("Speichern"),
+                  child: const Text("Speichern"),
                 ),
               ],
             ),
